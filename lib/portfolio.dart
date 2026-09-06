@@ -87,29 +87,29 @@ class HomePage extends StatelessWidget {
       backgroundColor: Colors.transparent,
 
       title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.lightbulb,
-              color: Colors.white,
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          const Text(
-            'StreetLight',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        borderRadius: BorderRadius.circular(8),
       ),
+      child: const Icon(
+        Icons.lightbulb,
+        color: Colors.white,
+        size: 22,
+      ),
+    ),
+    const SizedBox(width: 8),
+    const Flexible(
+      child: Text(
+        'StreetLight',
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ],
+),
 
       actions: [
         if (MediaQuery.of(context).size.width > 600) ...[
@@ -250,29 +250,26 @@ class HomePage extends StatelessWidget {
 
         const SizedBox(height: 30),
 
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Project details will be available soon.',
-                    ),
-                  ),
-                );
-              },
-              child: const Text('View Project'),
-            ),
-
-            const SizedBox(width: 15),
-
-            OutlinedButton(
-              onPressed: () {},
-              child: const Text('Learn More'),
-            ),
-          ],
-        ),
+       Wrap(
+  spacing: 12,
+  runSpacing: 10,
+  children: [
+    ElevatedButton(
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Project details will be available soon.'),
+          ),
+        );
+      },
+      child: const Text('View Project'),
+    ),
+    OutlinedButton(
+      onPressed: () {},
+      child: const Text('Learn More'),
+    ),
+  ],
+),
       ],
     );
   }

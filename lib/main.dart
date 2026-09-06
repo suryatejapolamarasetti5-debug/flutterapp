@@ -1,6 +1,34 @@
 import 'package:flutter/material.dart';
-import 'portfolio.dart';
+import 'complaint_home.dart';
 
 void main() {
-  runApp(const PortfolioPage());
+  runApp(const StreetLightApp());
+}
+
+class StreetLightApp extends StatelessWidget {
+  const StreetLightApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'StreetLight Complaint System',
+
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.amber,
+        brightness: Brightness.light,
+      ),
+
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.amber,
+        brightness: Brightness.dark,
+      ),
+
+      themeMode: ThemeMode.system,
+
+      home: const ComplaintHome(),
+    );
+  }
 }
