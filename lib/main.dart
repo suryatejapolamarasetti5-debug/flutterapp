@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'complaint_home.dart';
+import 'login_page.dart';
 
 void main() {
   runApp(const StreetLightApp());
@@ -28,7 +29,8 @@ class StreetLightApp extends StatelessWidget {
 
       themeMode: ThemeMode.system,
 
-      home: const ComplaintHome(),
+      // Login is now the first screen
+      home: const LoginPage(),
     );
   }
 }
