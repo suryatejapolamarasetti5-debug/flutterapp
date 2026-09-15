@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'database_helper.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -35,49 +34,43 @@ Future<void> _register() async {
   }
 
   try {
-    final response = await http.post(
-      Uri.parse(
-        'http://localhost:8080/streetlightbackend/register',
-      ),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {
-        'name': nameController.text.trim(),
-        'email': emailController.text.trim().toLowerCase(),
-        'password': passwordController.text,
-      },
+    final existingUser =
+        await DatabaseHelper.instance.getUserByEmail(
+      emailController.text.trim().toLowerCase(),
+    );
+
+    if (existingUser != null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email is already registered'),
+        ),
+      );
+      return;
+    }
+
+    await DatabaseHelper.instance.insertUser(
+      nameController.text.trim(),
+      emailController.text.trim().toLowerCase(),
+      passwordController.text,
     );
 
     if (!mounted) return;
 
-    final data = jsonDecode(response.body);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Registration successful!'),
+      ),
+    );
 
-    if (response.statusCode == 201 && data['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful!'),
-        ),
-      );
-
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            data['message'] ?? 'Registration failed',
-          ),
-        ),
-      );
-    }
+    Navigator.pop(context);
   } catch (e) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Could not connect to the backend: $e',
-        ),
+        content: Text('Registration failed: $e'),
       ),
     );
   }

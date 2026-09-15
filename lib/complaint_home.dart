@@ -1,19 +1,72 @@
+
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'database_helper.dart';
+import 'auth_service.dart';
+import 'login_page.dart';
+import 'package:geolocator/geolocator.dart';
+import 'nearby_issues_page.dart';
+
 class ComplaintHome extends StatefulWidget {
-  const ComplaintHome({super.key});
+  final String userRole;
+
+  const ComplaintHome({
+    super.key,
+    this.userRole = 'user',
+  });
 
   @override
   State<ComplaintHome> createState() => _ComplaintHomeState();
 }
 
 class _ComplaintHomeState extends State<ComplaintHome> {
+  bool get isAdmin => widget.userRole == 'admin';
   int selectedIndex = 0;
   String searchQuery = '';
   String selectedFilter = 'All';
+
+  String _formatComplaintDate(dynamic value) {
+    if (value == null) {
+      return 'Unknown date';
+    }
+
+    try {
+      final parsed = DateTime.parse(value.toString());
+      final month = <String>[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ][parsed.month - 1];
+      return '${parsed.day} $month ${parsed.year}';
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
+  Uint8List? _decodeComplaintPhoto(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      return base64Decode(value.toString());
+    } catch (_) {
+      return null;
+    }
+  }
 
   final List<Map<String, dynamic>> complaints = [
     {
@@ -151,36 +204,39 @@ class _ComplaintHomeState extends State<ComplaintHome> {
 
             const Divider(),
 
-           _drawerItem(
-  Icons.dashboard_outlined,
-  'Dashboard',
-  0,
+            _drawerItem(
+              Icons.dashboard_outlined,
+              'Dashboard',
+              0,
+            ),
+            _drawerItem(
+              Icons.add_circle_outline,
+              'Report Complaint',
+              1,
+            ),
+            _drawerItem(
+              Icons.list_alt_outlined,
+              'My Complaints',
+              2,
+            ),
+            _drawerItem(
+              Icons.info_outline,
+              'About',
+              3,
+            ),
+                   _drawerItem(
+  Icons.map_outlined,
+  'Nearby Issues',
+  5,
 ),
-
-_drawerItem(
-  Icons.add_circle_outline,
-  'Report Complaint',
-  1,
-),
-
-_drawerItem(
-  Icons.list_alt_outlined,
-  'My Complaints',
-  2,
-),
-
-_drawerItem(
-  Icons.info_outline,
-  'About',
-  3,
-),
-
-_drawerItem(
-  Icons.admin_panel_settings_outlined,
-  'Admin Dashboard',
-  4,
-),
-            const Spacer(),
+      
+         if (isAdmin)
+  _drawerItem(
+    Icons.admin_panel_settings_outlined,
+    'Admin Dashboard',
+    4,
+  ),
+           const Spacer(),
 
             const Divider(),
 
@@ -188,7 +244,13 @@ _drawerItem(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
               onTap: () {
-                Navigator.pop(context);
+                AuthService.logout();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                  (route) => false,
+                );
               },
             ),
           ],
@@ -220,24 +282,22 @@ _drawerItem(
   // BODY
   // ==========================================================
 
- Widget _buildBody() {
-  switch (selectedIndex) {
-    case 1:
-      return _reportComplaintPage();
-
-    case 2:
-      return _complaintsPage();
-
-    case 3:
-      return _aboutPage();
-
-    case 4:
-      return _adminDashboardPage();
-
-    default:
-      return _dashboardPage();
+  Widget _buildBody() {
+    switch (selectedIndex) {
+      case 1:
+        return _reportComplaintPage();
+      case 2:
+        return _complaintsPage();
+      case 3:
+        return _aboutPage();
+      case 4:
+        return _adminDashboardPage();
+      case 5:
+        return const NearbyIssuesPage();
+      default:
+        return _dashboardPage();
+    }
   }
- }
 
   // ==========================================================
   // DASHBOARD
@@ -549,323 +609,201 @@ _drawerItem(
       ),
     );
   }
-// ==========================================================
-// ADMIN DASHBOARD
-// ==========================================================
+  // ==========================================================
+  // ADMIN DASHBOARD
+  // ==========================================================
 
-Widget _adminDashboardPage() {
-  final pending = complaints
-      .where((c) => c['status'] == 'Pending')
-      .length;
+  Widget _adminDashboardPage() {
+    final pending = complaints
+        .where((c) => c['status'] == 'Pending')
+        .length;
 
-  final progress = complaints
-      .where((c) => c['status'] == 'In Progress')
-      .length;
+    final progress = complaints
+        .where((c) => c['status'] == 'In Progress')
+        .length;
 
-  final resolved = complaints
-      .where((c) => c['status'] == 'Resolved')
-      .length;
+    final resolved = complaints
+        .where((c) => c['status'] == 'Resolved')
+        .length;
 
-  // SEARCH + FILTER
-  final filteredComplaints = complaints.where((complaint) {
-    final query = searchQuery.toLowerCase().trim();
+    final filteredComplaints = complaints.where((complaint) {
+      final query = searchQuery.toLowerCase().trim();
 
-    final matchesSearch =
-        complaint['id']
-                .toString()
-                .toLowerCase()
-                .contains(query) ||
-            complaint['type']
-                .toString()
-                .toLowerCase()
-                .contains(query) ||
-            complaint['location']
-                .toString()
-                .toLowerCase()
-                .contains(query);
+      final matchesSearch =
+          complaint['id'].toString().toLowerCase().contains(query) ||
+              complaint['type'].toString().toLowerCase().contains(query) ||
+              complaint['location'].toString().toLowerCase().contains(query);
 
-    final matchesFilter =
-        selectedFilter == 'All' ||
-        complaint['status'] == selectedFilter;
+      final matchesFilter =
+          selectedFilter == 'All' || complaint['status'] == selectedFilter;
 
-    return matchesSearch && matchesFilter;
-  }).toList();
+      return matchesSearch && matchesFilter;
+    }).toList();
 
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(25),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        // ==================================================
-        // TITLE
-        // ==================================================
-
-        const Text(
-          'Admin Dashboard',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          'Manage and monitor streetlight complaints.',
-          style: TextStyle(
-            fontSize: 16,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.6),
-          ),
-        ),
-
-        const SizedBox(height: 30),
-
-        // ==================================================
-        // SUMMARY CARDS
-        // ==================================================
-
-        Wrap(
-          spacing: 15,
-          runSpacing: 15,
-          children: [
-            _summaryCard(
-              'Total Complaints',
-              '${complaints.length}',
-              Icons.assignment_outlined,
-            ),
-
-            _summaryCard(
-              'Pending',
-              '$pending',
-              Icons.pending_actions,
-            ),
-
-            _summaryCard(
-              'In Progress',
-              '$progress',
-              Icons.sync,
-            ),
-
-            _summaryCard(
-              'Resolved',
-              '$resolved',
-              Icons.check_circle_outline,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 35),
-
-        // ==================================================
-        // SEARCH BAR
-        // ==================================================
-
-        TextField(
-          onChanged: (value) {
-            setState(() {
-              searchQuery = value;
-            });
-          },
-          decoration: InputDecoration(
-            hintText:
-                'Search by ID, type or location...',
-            prefixIcon: const Icon(
-              Icons.search,
-            ),
-            suffixIcon: searchQuery.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      setState(() {
-                        searchQuery = '';
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.clear,
-                    ),
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(12),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(25),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Admin Dashboard',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // ==================================================
-        // FILTER
-        // ==================================================
-
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
+          const SizedBox(height: 8),
+          Text(
+            'Manage and monitor streetlight complaints.',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 30),
+          Wrap(
+            spacing: 15,
+            runSpacing: 15,
             children: [
-              _filterButton('All'),
-              _filterButton('Pending'),
-              _filterButton('In Progress'),
-              _filterButton('Resolved'),
+              _summaryCard(
+                'Total Complaints',
+                '${complaints.length}',
+                Icons.assignment_outlined,
+              ),
+              _summaryCard(
+                'Pending',
+                '$pending',
+                Icons.pending_actions,
+              ),
+              _summaryCard(
+                'In Progress',
+                '$progress',
+                Icons.sync,
+              ),
+              _summaryCard(
+                'Resolved',
+                '$resolved',
+                Icons.check_circle_outline,
+              ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 30),
-
-        // ==================================================
-        // ALL COMPLAINTS
-        // ==================================================
-
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Complaints',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+          const SizedBox(height: 35),
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search by ID, type or location...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: searchQuery.isNotEmpty
+                  ? IconButton(
+                      onPressed: () {
+                        setState(() {
+                          searchQuery = '';
+                        });
+                      },
+                      icon: const Icon(Icons.clear),
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-
-            Text(
-              '${filteredComplaints.length} found',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-              ),
+          ),
+          const SizedBox(height: 20),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filterButton('All'),
+                _filterButton('Pending'),
+                _filterButton('In Progress'),
+                _filterButton('Resolved'),
+              ],
             ),
-          ],
-        ),
-
-        const SizedBox(height: 15),
-
-        // ==================================================
-        // RESULTS
-        // ==================================================
-
-        if (filteredComplaints.isEmpty)
-          _noComplaintsFound()
-        else
-          ...filteredComplaints.map(
-            (complaint) =>
-                _adminComplaintCard(complaint),
           ),
-      ],
-    ),
-  );
-}
-Widget _filterButton(String filter) {
-  final bool isSelected =
-      selectedFilter == filter;
-
-  return Padding(
-    padding: const EdgeInsets.only(right: 10),
-    child: ChoiceChip(
-      label: Text(filter),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          selectedFilter = filter;
-        });
-      },
-    ),
-  );
-}
-Widget _noComplaintsFound() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(40),
-    child: Column(
-      children: [
-        Icon(
-          Icons.search_off,
-          size: 55,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurface
-              .withValues(alpha: 0.4),
-        ),
-
-        const SizedBox(height: 15),
-
-        const Text(
-          'No complaints found',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          'Try a different search or filter.',
-          style: TextStyle(
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.6),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-Widget _adminComplaintCard(
-  Map<String, dynamic> complaint,
-) {
-  return Card(
-    margin: const EdgeInsets.only(
-      bottom: 15,
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-
-          // TITLE + STATUS
+          const SizedBox(height: 30),
           Row(
             children: [
-
-              Expanded(
+              const Expanded(
                 child: Text(
-                  complaint['type'],
-                  style: const TextStyle(
-                    fontSize: 17,
+                  'Complaints',
+                  style: TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-
-              const SizedBox(width: 10),
-
-              _statusBadge(
-                complaint['status'],
+              Text(
+                '${filteredComplaints.length} found',
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 15),
+          if (filteredComplaints.isEmpty)
+            _noComplaintsFound()
+          else
+            ...filteredComplaints.map(
+              (complaint) => _adminComplaintCard(complaint),
+            ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 10),
+  Widget _filterButton(String filter) {
+    final bool isSelected = selectedFilter == filter;
 
-          // ID + LOCATION
-          Text(
-            '${complaint['id']} • '
-            '${complaint['location']}',
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: ChoiceChip(
+        label: Text(filter),
+        selected: isSelected,
+        onSelected: (selected) {
+          setState(() {
+            selectedFilter = filter;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _noComplaintsFound() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 55,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.4),
           ),
-
-          const SizedBox(height: 5),
-
-          // DATE
+          const SizedBox(height: 15),
+          const Text(
+            'No complaints found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
-            complaint['date'],
+            'Try a different search or filter.',
             style: TextStyle(
               color: Theme.of(context)
                   .colorScheme
@@ -873,35 +811,69 @@ Widget _adminComplaintCard(
                   .withValues(alpha: 0.6),
             ),
           ),
-
-          const SizedBox(height: 15),
-
-          // MANAGE BUTTON
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-               _showAdminComplaintDetails(
-                  complaint,
-                );
-              },
-              icon: const Icon(
-                Icons.manage_search,
-              ),
-              label: const Text(
-                'Manage Complaint',
-              ),
-            ),
-          ),
         ],
       ),
-    ),
-  );
-}
-void _showComplaintDetails(
-  Map<String, dynamic> complaint,
-) {
-  showDialog(
+    );
+  }
+
+  Widget _adminComplaintCard(
+    Map<String, dynamic> complaint,
+  ) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    complaint['type'],
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _statusBadge(complaint['status']),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text('${complaint['id']} • ${complaint['location']}'),
+            const SizedBox(height: 5),
+            Text(
+              complaint['date'],
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 15),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  _showAdminComplaintDetails(complaint);
+                },
+                icon: const Icon(Icons.manage_search),
+                label: const Text('Manage Complaint'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showComplaintDetails(
+    Map<String, dynamic> complaint,
+  ) {
+    showDialog(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
@@ -1026,159 +998,39 @@ void _showComplaintDetails(
     },
   );
 }
-Widget _adminDetailRow(
-  IconData icon,
-  String title,
-  String value,
-) {
-  return Padding(
-    padding: const EdgeInsets.only(
-      bottom: 12,
-    ),
-    child: Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: Theme.of(context)
-              .colorScheme
-              .primary,
-        ),
-
-        const SizedBox(width: 10),
-
-        SizedBox(
-          width: 110,
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+  Widget _adminDetailRow(
+    IconData icon,
+    String title,
+    String value,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
           ),
-        ),
-
-        Expanded(
-          child: Text(value),
-        ),
-      ],
-    ),
-  );
-}
-Widget _trackingTimeline(String status) {
-  final stages = [
-    'Complaint Submitted',
-    'Complaint Received',
-    'Technician Assigned',
-    'Issue Resolved',
-  ];
-
-  int currentStage;
-
-  switch (status) {
-    case 'Resolved':
-      currentStage = 3;
-      break;
-
-    case 'In Progress':
-      currentStage = 2;
-      break;
-
-    default:
-      currentStage = 1;
-  }
-
-  return Column(
-    children: List.generate(
-      stages.length,
-      (index) {
-        final bool completed =
-            index <= currentStage;
-
-        final bool isLast =
-            index == stages.length - 1;
-
-        return Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            // Timeline line and circle
-            Column(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: completed
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primary
-                        : Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                  ),
-                  child: Icon(
-                    completed
-                        ? Icons.check
-                        : Icons.circle_outlined,
-                    size: 17,
-                    color: completed
-                        ? Colors.white
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.4),
-                  ),
-                ),
-
-                if (!isLast)
-                  Container(
-                    width: 2,
-                    height: 42,
-                    color: completed
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primary
-                        : Theme.of(context)
-                            .colorScheme
-                            .outlineVariant,
-                  ),
-              ],
-            ),
-
-            const SizedBox(width: 14),
-
-            // Stage name
-            Expanded(
-              child: Padding(
-                padding:
-                    const EdgeInsets.only(top: 5),
-                child: Text(
-                  stages[index],
-                  style: TextStyle(
-                    fontWeight: completed
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: completed
-                        ? Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.5),
-                  ),
-                ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        );
-      },
-    ),
-  );
-}
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _detailRow(
     String title,
     String value,
@@ -1186,8 +1038,7 @@ Widget _trackingTimeline(String status) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 100,
@@ -1198,7 +1049,6 @@ Widget _trackingTimeline(String status) {
               ),
             ),
           ),
-
           Expanded(
             child: Text(value),
           ),
@@ -1206,9 +1056,21 @@ Widget _trackingTimeline(String status) {
       ),
     );
   }
-  void _showAdminComplaintDetails(
+
+ void _showAdminComplaintDetails(
   Map<String, dynamic> complaint,
 ) {
+  if (!isAdmin) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Only administrators can manage complaints.',
+        ),
+      ),
+    );
+    return;
+  }
+
   String selectedStatus = complaint['status'];
 
   showDialog(
@@ -1216,7 +1078,7 @@ Widget _trackingTimeline(String status) {
     builder: (dialogContext) {
       return StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
+          var alertDialog = AlertDialog(
             title: const Text(
               'Manage Complaint',
               style: TextStyle(
@@ -1394,114 +1256,173 @@ Widget _trackingTimeline(String status) {
                 },
                 child: const Text('Cancel'),
               ),
-
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  final dialogNavigator = Navigator.of(dialogContext);
+
+                  if (!isAdmin) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Only administrators can update complaints.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final complaintId = complaint['dbId'];
+
+                  if (complaintId == null) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Complaint ID not found.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (!mounted) return;
+
+                  await DatabaseHelper.instance.updateComplaintStatus(
+                    complaintId,
+                    selectedStatus,
+                  );
+
+                  if (!mounted) return;
+
                   setState(() {
-                    complaint['status'] =
-                        selectedStatus;
+                    complaint['status'] = selectedStatus;
                   });
 
-                  Navigator.pop(dialogContext);
+                  dialogNavigator.pop();
 
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Complaint updated successfully!',
-                      ),
+                      content: Text('Complaint status updated successfully.'),
                     ),
                   );
                 },
                 icon: const Icon(Icons.save),
-                label:
-                    const Text('Save Changes'),
+                label: const Text('Update Status'),
               ),
             ],
           );
+
+          return alertDialog;
         },
       );
     },
   );
 }
-Widget _aboutPage() {
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(25),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 750,
-        ),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  size: 80,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary,
-                ),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  'About StreetLight',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+  Widget _aboutPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(25),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 750),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(30),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  'StreetLight Complaint Management System '
-                  'provides citizens with a simple digital '
-                  'platform to report streetlight problems '
-                  'and monitor their resolution status.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
+                  const SizedBox(height: 20),
+                  const Text(
+                    'About StreetLight',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 25),
-
-                const Text(
-                  'The system allows citizens to submit '
-                  'complaints with location, priority, '
-                  'description and photo evidence. '
-                  'Administrators can review complaints '
-                  'and update their status.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.5,
+                  const SizedBox(height: 20),
+                  const Text(
+                    'StreetLight Complaint Management System '
+                    'provides citizens with a simple digital '
+                    'platform to report streetlight problems '
+                    'and monitor their resolution status.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 25),
+                  const Text(
+                    'The system allows citizens to submit '
+                    'complaints with location, priority, '
+                    'description and photo evidence. '
+                    'Administrators can review complaints '
+                    'and update their status.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-   );
+    );
+  }
+
+  // ============================================================
+  // END OF COMPLAINT HOME STATE
+  // ============================================================
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComplaints();
+  }
+
+  Future<void> _loadComplaints() async {
+    final data = await DatabaseHelper.instance.getComplaints();
+    final currentUserId = AuthService.currentUserId;
+    final visibleComplaints = isAdmin || currentUserId == null
+        ? data
+        : data
+            .where((complaint) =>
+                complaint['user_id'] == currentUserId)
+            .toList();
+
+    if (!mounted) return;
+
+    setState(() {
+      complaints.clear();
+
+      complaints.addAll(
+        visibleComplaints.map((complaint) {
+          final photoValue = complaint['image_path'];
+
+          return {
+            'id': 'SL-${complaint['id'].toString().padLeft(3, '0')}',
+            'dbId': complaint['id'],
+            'type': complaint['complaint_type'],
+            'location': complaint['location'],
+            'priority': complaint['priority'],
+            'description': complaint['description'],
+            'status': complaint['status'],
+            'date': _formatComplaintDate(complaint['created_at']),
+            'hasPhoto': photoValue != null && photoValue.toString().isNotEmpty,
+            'photo': _decodeComplaintPhoto(photoValue),
+          };
+        }),
+      );
+    });
+  }
 }
-
-// ============================================================
-// END OF COMPLAINT HOME STATE
-// ============================================================
-
-}
-
 // ============================================================
 // COMPLAINT FORM
 // ============================================================
-
 class _ComplaintForm extends StatefulWidget {
   const _ComplaintForm();
 
@@ -1526,6 +1447,10 @@ class _ComplaintFormState
   String priority = 'Medium';
 
   Uint8List? selectedImage;
+  double? latitude;
+  double? longitude;
+
+bool gettingLocation = false;
 
   final ImagePicker picker = ImagePicker();
 
@@ -1669,7 +1594,45 @@ class _ComplaintFormState
                         return null;
                       },
                     ),
+                    const SizedBox(height: 10),
 
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed:
+        gettingLocation ? null : _getCurrentLocation,
+    icon: gettingLocation
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+            ),
+          )
+        : const Icon(Icons.my_location),
+    label: Text(
+      gettingLocation
+          ? 'Getting Location...'
+          : 'Use Current Location',
+    ),
+  ),
+),
+
+if (latitude != null && longitude != null)
+  Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      'Location captured: '
+      '${latitude!.toStringAsFixed(6)}, '
+      '${longitude!.toStringAsFixed(6)}',
+      style: TextStyle(
+        color: Theme.of(context)
+            .colorScheme
+            .primary,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  ),
                     const SizedBox(height: 20),
 
                     // PRIORITY
@@ -1887,44 +1850,183 @@ class _ComplaintFormState
     );
   }
 
-  void _submitComplaint() {
+  Future<void> _submitComplaint() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     final parent =
-        context.findAncestorStateOfType<
-            _ComplaintHomeState>();
+        context.findAncestorStateOfType<_ComplaintHomeState>();
 
-    if (parent == null) return;
+    if (parent == null) {
+      return;
+    }
 
-    final newId =
-        'SL-${(parent.complaints.length + 1).toString().padLeft(3, '0')}';
+    try {
+      final userId = AuthService.currentUserId;
 
-    parent.setState(() {
-     parent.complaints.insert(
-  0,
-  {
-    'id': newId,
-    'type': complaintType,
-    'location': locationController.text.trim(),
-    'priority': priority,
-    'description': descriptionController.text.trim(),
-    'status': 'Pending',
-    'date': '06 Sep 2026',
-    'hasPhoto': selectedImage != null,
-    'photo': selectedImage,
-  },
-);
-      parent.selectedIndex = 2;
+      if (userId == null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in again to submit a complaint.'),
+          ),
+        );
+        return;
+      }
+
+      final imageData = selectedImage == null
+          ? null
+          : base64Encode(selectedImage!);
+
+      await DatabaseHelper.instance.insertComplaint(
+        userId,
+        complaintType,
+        locationController.text.trim(),
+        descriptionController.text.trim(),
+        priority,
+        'Pending',
+        imageData,
+        DateTime.now().toIso8601String(),
+        latitude: latitude,
+        longitude: longitude,
+      );
+
+      await parent._loadComplaints();
+
+      if (!mounted) return;
+
+      parent.setState(() {
+        parent.selectedIndex = 2;
+      });
+
+      locationController.clear();
+      descriptionController.clear();
+
+      setState(() {
+        complaintType = 'Streetlight Not Working';
+        priority = 'Medium';
+        selectedImage = null;
+        latitude = null;
+        longitude = null;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Complaint submitted successfully!',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('SUBMIT ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to submit complaint: $e',
+          ),
+        ),
+      );
+    }
+  }
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      gettingLocation = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Complaint submitted successfully!',
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enable location services.'),
+          ),
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          latitude = null;
+          longitude = null;
+          gettingLocation = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission is required.'),
+          ),
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          latitude = null;
+          longitude = null;
+          gettingLocation = false;
+        });
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
         ),
-      ),
-    );
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        latitude = position.latitude;
+        longitude = position.longitude;
+        locationController.text =
+            '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+        gettingLocation = false;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Current location captured.'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('LOCATION ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        latitude = null;
+        longitude = null;
+        gettingLocation = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to get location: $e'),
+        ),
+      );
+    }
   }
 }

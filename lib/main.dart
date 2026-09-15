@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'complaint_home.dart';
 import 'login_page.dart';
 
-void main() {
+void main(){
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const StreetLightApp());
 }
 

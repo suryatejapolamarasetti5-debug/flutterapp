@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
+import 'auth_service.dart';
+import 'database_helper.dart';
 import 'register_page.dart';
 import 'complaint_home.dart';
 class LoginPage extends StatefulWidget {
@@ -33,35 +32,33 @@ Future<void> _login() async {
   }
 
   try {
-    final response = await http.post(
-      Uri.parse(
-        'http://localhost:8080/streetlightbackend/login',
-      ),
-      body: {
-        'email': emailController.text.trim(),
-        'password': passwordController.text,
-      },
+    final email = emailController.text.trim().toLowerCase();
+    final password = passwordController.text;
+
+    final user = await DatabaseHelper.instance.getUser(
+      email,
+      password,
     );
 
-    final data = jsonDecode(response.body);
+    if (user != null) {
+      AuthService.setLoggedInUser(user);
 
-    if (response.statusCode == 200 && data['success'] == true) {
       if (!mounted) return;
 
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ComplaintHome(),
-        ),
+  context,
+  MaterialPageRoute(
+    builder: (context) => ComplaintHome(
+      userRole: user['role'] ?? 'user',
+    ),
+  ),
       );
     } else {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            data['message'] ?? 'Invalid email or password',
-          ),
+        const SnackBar(
+          content: Text('Invalid email or password'),
         ),
       );
     }
@@ -69,10 +66,8 @@ Future<void> _login() async {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Unable to connect to the server.',
-        ),
+      SnackBar(
+        content: Text('Login failed: $e'),
       ),
     );
   }
