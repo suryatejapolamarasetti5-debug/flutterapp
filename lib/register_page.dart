@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'database_helper.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final VoidCallback? onRegistered;
+  final VoidCallback? onLoginTap;
+
+  const RegisterPage({super.key, this.onRegistered, this.onLoginTap});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -63,6 +66,11 @@ Future<void> _register() async {
         content: Text('Registration successful!'),
       ),
     );
+
+    if (widget.onRegistered != null) {
+      widget.onRegistered!();
+      return;
+    }
 
     Navigator.pop(context);
   } catch (e) {
@@ -327,6 +335,11 @@ Future<void> _register() async {
                             ),
                             TextButton(
                               onPressed: () {
+                                if (widget.onLoginTap != null) {
+                                  widget.onLoginTap!();
+                                  return;
+                                }
+
                                 Navigator.pop(context);
                               },
                               child: const Text(

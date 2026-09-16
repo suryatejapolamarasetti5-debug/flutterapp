@@ -4,7 +4,10 @@ import 'database_helper.dart';
 import 'register_page.dart';
 import 'complaint_home.dart';
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final VoidCallback? onLoginSuccess;
+  final VoidCallback? onRegisterTap;
+
+  const LoginPage({super.key, this.onLoginSuccess, this.onRegisterTap});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -45,6 +48,11 @@ Future<void> _login() async {
 
       if (!mounted) return;
 
+      if (widget.onLoginSuccess != null) {
+        widget.onLoginSuccess!();
+        return;
+      }
+
       Navigator.pushReplacement(
   context,
   MaterialPageRoute(
@@ -73,6 +81,11 @@ Future<void> _login() async {
   }
 }
   void _openRegisterPage() {
+    if (widget.onRegisterTap != null) {
+      widget.onRegisterTap!();
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(

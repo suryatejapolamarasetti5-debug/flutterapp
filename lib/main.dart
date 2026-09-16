@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
 
-void main(){
+import 'app_shell.dart';
+import 'theme.dart';
+import 'background_animation.dart';
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const StreetLightApp());
 }
@@ -15,22 +18,29 @@ class StreetLightApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'StreetLight Complaint System',
 
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.amber,
-        brightness: Brightness.light,
+      theme: AppThemes.deepCorporateBlue().copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
       ),
 
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.amber,
-        brightness: Brightness.dark,
+      darkTheme: AppThemes.darkThemeFor(
+        AppThemes.themeSeedColors['Deep Corporate Blue']!,
+      ).copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
       ),
 
       themeMode: ThemeMode.system,
 
-      // Login is now the first screen
-      home: const LoginPage(),
+      home: Stack(
+        children: [
+          const Positioned.fill(
+            child: BackgroundAnimation(),
+          ),
+
+          const Positioned.fill(
+            child: AppShell(),
+          ),
+        ],
+      ),
     );
   }
 }
