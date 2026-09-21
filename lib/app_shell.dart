@@ -5,13 +5,14 @@ import 'animations.dart';
 import 'theme.dart';
 import 'complaints_tab.dart';
 import 'complaint_form.dart';
-import 'login_page.dart';
+import 'profile_edit_page.dart';
 import 'nearby_issues_page.dart';
 import 'electrical_offices_page.dart';
-import 'register_page.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  final VoidCallback? onLoggedOut;
+
+  const AppShell({super.key, this.onLoggedOut});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -22,33 +23,9 @@ class _AppShellState extends State<AppShell> {
   final GlobalKey<ComplaintsTabState> _complaintsKey =
       GlobalKey<ComplaintsTabState>();
 
-  bool get _loggedIn => AuthService.currentUser != null;
-
   void _switchTo(int index) {
     setState(() {
       _index = index;
-    });
-  }
-
-  void _handleLoginSuccess() {
-    _complaintsKey.currentState?.reload();
-
-    if (!mounted) return;
-
-    setState(() {
-      _index = 0;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login successful')),
-    );
-  }
-
-  void _handleRegistered() {
-    if (!mounted) return;
-
-    setState(() {
-      _index = 5;
     });
   }
 
@@ -56,9 +33,15 @@ class _AppShellState extends State<AppShell> {
     AuthService.logout();
     _complaintsKey.currentState?.reload();
 
-    setState(() {
-      _index = 4;
-    });
+    widget.onLoggedOut?.call();
+  }
+
+  void _handleProfileEdited() {
+    _complaintsKey.currentState?.reload();
+
+    if (!mounted) return;
+
+    setState(() {});
   }
 
   void _handleComplaintSubmitted() {
@@ -69,6 +52,13 @@ class _AppShellState extends State<AppShell> {
     setState(() {
       _index = 0;
     });
+  }
+
+  void _handleNotLoggedIn() {
+    AuthService.logout();
+    _complaintsKey.currentState?.reload();
+
+    widget.onLoggedOut?.call();
   }
 
   @override
@@ -82,56 +72,43 @@ class _AppShellState extends State<AppShell> {
           const ElectricalOfficesPage(),
           ComplaintForm(
             onComplaintSubmitted: _handleComplaintSubmitted,
-            onNotLoggedIn: () => _switchTo(4),
+            onNotLoggedIn: _handleNotLoggedIn,
           ),
-          _loggedIn
-              ? _ProfileView(onLogout: _handleLogout)
-              : LoginPage(
-                  onLoginSuccess: _handleLoginSuccess,
-                  onRegisterTap: () => _switchTo(5),
-                ),
-          _loggedIn
-              ? _AlreadyLoggedInView(onGoToProfile: () => _switchTo(4))
-              : RegisterPage(
-                  onRegistered: _handleRegistered,
-                  onLoginTap: () => _switchTo(4),
-                ),
+          _ProfileView(
+            onLogout: _handleLogout,
+            onProfileEdited: _handleProfileEdited,
+          ),
         ],
       ),
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _switchTo,
-        destinations: [
-          const NavigationDestination(
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.list_alt_outlined),
             selectedIcon: Icon(Icons.list_alt),
             label: 'Complaints',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map),
             label: 'Nearby',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.contact_phone_outlined),
             selectedIcon: Icon(Icons.contact_phone),
             label: 'Contacts',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.add_circle_outline),
             selectedIcon: Icon(Icons.add_circle),
             label: 'Report',
           ),
           NavigationDestination(
-            icon: Icon(_loggedIn ? Icons.account_circle_outlined : Icons.login),
-            selectedIcon: Icon(_loggedIn ? Icons.account_circle : Icons.login),
-            label: _loggedIn ? 'Profile' : 'Login',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_add_alt_1),
-            selectedIcon: Icon(Icons.person_add_alt_1),
-            label: 'Register',
+            icon: Icon(Icons.account_circle_outlined),
+            selectedIcon: Icon(Icons.account_circle),
+            label: 'Profile',
           ),
         ],
       ),
@@ -145,8 +122,24 @@ class _AppShellState extends State<AppShell> {
 
 class _ProfileView extends StatelessWidget {
   final VoidCallback onLogout;
+  final VoidCallback onProfileEdited;
 
-  const _ProfileView({required this.onLogout});
+  const _ProfileView({
+    required this.onLogout,
+    required this.onProfileEdited,
+  });
+
+  Future<void> _openEditProfile(BuildContext context) async {
+    final edited = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => const ProfileEditPage(),
+      ),
+    );
+
+    if (edited == true) {
+      onProfileEdited();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -253,10 +246,10 @@ class _ProfileView extends StatelessWidget {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: onLogout,
-                        icon: const Icon(Icons.logout),
+                        onPressed: () => _openEditProfile(context),
+                        icon: const Icon(Icons.edit_outlined),
                         label: const Text(
-                          'Logout',
+                          'Edit Profile',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -264,84 +257,17 @@ class _ProfileView extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
-// ═══════════════════════════════════════════════════════════════
-// ALREADY LOGGED IN VIEW (shown on the Register tab when logged in)
-// ═══════════════════════════════════════════════════════════════
-
-class _AlreadyLoggedInView extends StatelessWidget {
-  final VoidCallback onGoToProfile;
-
-  const _AlreadyLoggedInView({required this.onGoToProfile});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 450),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(30),
-                child: Column(
-                  children: [
-                    BlinkingHalo(
-                      color: colorScheme.primary,
-                      size: 70,
-                      rings: 2,
-                      child: Icon(
-                        Icons.check_circle,
-                        size: 46,
-                        color: AppThemes.statusResolved,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'You are already logged in',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    Text(
-                      'Use the Profile tab to manage your account '
-                      'or logout.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colorScheme.onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                    ),
-
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 12),
 
                     SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: onGoToProfile,
-                        icon: const Icon(Icons.person),
+                      child: OutlinedButton.icon(
+                        onPressed: onLogout,
+                        icon: const Icon(Icons.logout),
                         label: const Text(
-                          'Go to Profile',
+                          'Logout',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

@@ -191,6 +191,26 @@ class DatabaseHelper {
     return null;
   }
 
+  Future<int> updateUser(
+    int userId,
+    String name,
+    String email,
+    String password,
+  ) async {
+    final db = await database;
+
+    return await db.update(
+      'users',
+      {
+        'name': name,
+        'email': email,
+        'password': password,
+      },
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
   // ============================================================
   // INSERT COMPLAINT
   // ============================================================
