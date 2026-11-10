@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'animations.dart';
 import 'database_helper.dart';
 import 'auth_service.dart';
 import 'login_page.dart';
@@ -264,17 +265,85 @@ class _ComplaintHomeState extends State<ComplaintHome> {
     String title,
     int index,
   ) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      selected: selectedIndex == index,
-      onTap: () {
-        setState(() {
-          selectedIndex = index;
-        });
+    final isSelected = selectedIndex == index;
 
-        Navigator.pop(context);
-      },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      // The active destination is marked with a soft light beam
+      // instead of a hard colour change.
+      child: PressScale(
+        pressedScale: 0.98,
+        pressedOpacity: 1,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              selectedIndex = index;
+            });
+
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isSelected
+                  ? Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.12)
+                  : Colors.transparent,
+            ),
+            child: Row(
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.85,
+                            end: 1,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutBack,
+                            ),
+                          ),
+                          child: child,
+                        ),
+                      ),
+                  child: Icon(
+                    icon,
+                    key: ValueKey<bool>(isSelected),
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  style: TextStyle(
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  child: Text(title),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -283,20 +352,36 @@ class _ComplaintHomeState extends State<ComplaintHome> {
   // ==========================================================
 
   Widget _buildBody() {
+    final Widget page;
     switch (selectedIndex) {
       case 1:
-        return _reportComplaintPage();
+        page = _reportComplaintPage();
+        break;
       case 2:
-        return _complaintsPage();
+        page = _complaintsPage();
+        break;
       case 3:
-        return _aboutPage();
+        page = _aboutPage();
+        break;
       case 4:
-        return _adminDashboardPage();
+        page = _adminDashboardPage();
+        break;
       case 5:
-        return const NearbyIssuesPage();
+        page = const NearbyIssuesPage();
+        break;
       default:
-        return _dashboardPage();
+        page = _dashboardPage();
     }
+
+    // Each destination keeps its own state, so replaying the entrance on
+    // every drawer selection would feel restless. Only replay when the page
+    // actually changes.
+    return FadeSlideIn(
+      key: ValueKey<int>(selectedIndex),
+      duration: const Duration(milliseconds: 320),
+      slide: const Offset(0, 0.03),
+      child: page,
+    );
   }
 
   // ==========================================================
@@ -318,24 +403,32 @@ class _ComplaintHomeState extends State<ComplaintHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Welcome 👋',
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          FadeSlideIn(
+            duration: const Duration(milliseconds: 360),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome 👋',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
 
-          const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-          Text(
-            'Report streetlight problems and track their progress.',
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
+                Text(
+                  'Report streetlight problems and track their progress.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -344,45 +437,58 @@ class _ComplaintHomeState extends State<ComplaintHome> {
           Wrap(
             spacing: 15,
             runSpacing: 15,
-            children: [
-              _summaryCard(
-                'Total',
-                '${complaints.length}',
-                Icons.assignment_outlined,
-              ),
-              _summaryCard(
-                'Pending',
-                '$pending',
-                Icons.pending_actions,
-              ),
-              _summaryCard(
-                'In Progress',
-                '$progress',
-                Icons.sync,
-              ),
-              _summaryCard(
-                'Resolved',
-                '$resolved',
-                Icons.check_circle_outline,
-              ),
-            ],
+            // Statistics cards arrive one after another.
+            children: buildStaggeredChildren(
+              <Widget>[
+                _summaryCard(
+                  'Total',
+                  '${complaints.length}',
+                  Icons.assignment_outlined,
+                ),
+                _summaryCard(
+                  'Pending',
+                  '$pending',
+                  Icons.pending_actions,
+                ),
+                _summaryCard(
+                  'In Progress',
+                  '$progress',
+                  Icons.sync,
+                ),
+                _summaryCard(
+                  'Resolved',
+                  '$resolved',
+                  Icons.check_circle_outline,
+                ),
+              ],
+              initialDelay: const Duration(milliseconds: 70),
+              interval: const Duration(milliseconds: 70),
+            ),
           ),
 
           const SizedBox(height: 35),
 
-          const Text(
-            'Recent Complaints',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+          FadeSlideIn(
+            duration: const Duration(milliseconds: 340),
+            delay: const Duration(milliseconds: 110),
+            child: const Text(
+              'Recent Complaints',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
 
           const SizedBox(height: 15),
 
-          ...complaints.take(5).map(
-                (complaint) => _complaintCard(complaint),
-              ),
+          StaggeredListAnimation(
+            initialDelay: const Duration(milliseconds: 150),
+            children: <Widget>[
+              for (final complaint in complaints.take(5))
+                _complaintCard(complaint),
+            ],
+          ),
         ],
       ),
     );
@@ -517,24 +623,9 @@ class _ComplaintHomeState extends State<ComplaintHome> {
   }
 
   Widget _statusBadge(String status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: _statusColor(status)
-            .withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: _statusColor(status),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
+    return StatusIndicator(
+      status: status,
+      color: _statusColor(status),
     );
   }
 
@@ -570,40 +661,57 @@ class _ComplaintHomeState extends State<ComplaintHome> {
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          const Text(
-            'My Complaints',
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          FadeSlideIn(
+            duration: const Duration(milliseconds: 360),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'My Complaints',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
 
-          const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-          Text(
-            'Track all complaints submitted by you.',
-            style: TextStyle(
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
+                Text(
+                  'Track all complaints submitted by you.',
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 25),
 
           if (complaints.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(50),
-                child: Text(
-                  'No complaints submitted yet.',
+            FadeSlideIn(
+              duration: const Duration(milliseconds: 340),
+              delay: const Duration(milliseconds: 100),
+              child: const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50),
+                  child: Text(
+                    'No complaints submitted yet.',
+                  ),
                 ),
               ),
             )
           else
-            ...complaints.map(
-              (complaint) => _complaintCard(complaint),
+            // Cards cascade in when the list is opened.
+            StaggeredListAnimation(
+              initialDelay: const Duration(milliseconds: 100),
+              children: <Widget>[
+                for (final complaint in complaints)
+                  _complaintCard(complaint),
+              ],
             ),
         ],
       ),
@@ -645,50 +753,62 @@ class _ComplaintHomeState extends State<ComplaintHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Admin Dashboard',
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage and monitor streetlight complaints.',
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
+          FadeSlideIn(
+            duration: const Duration(milliseconds: 360),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Admin Dashboard',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Manage and monitor streetlight complaints.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 30),
           Wrap(
             spacing: 15,
             runSpacing: 15,
-            children: [
-              _summaryCard(
-                'Total Complaints',
-                '${complaints.length}',
-                Icons.assignment_outlined,
-              ),
-              _summaryCard(
-                'Pending',
-                '$pending',
-                Icons.pending_actions,
-              ),
-              _summaryCard(
-                'In Progress',
-                '$progress',
-                Icons.sync,
-              ),
-              _summaryCard(
-                'Resolved',
-                '$resolved',
-                Icons.check_circle_outline,
-              ),
-            ],
+            children: buildStaggeredChildren(
+              <Widget>[
+                _summaryCard(
+                  'Total Complaints',
+                  '${complaints.length}',
+                  Icons.assignment_outlined,
+                ),
+                _summaryCard(
+                  'Pending',
+                  '$pending',
+                  Icons.pending_actions,
+                ),
+                _summaryCard(
+                  'In Progress',
+                  '$progress',
+                  Icons.sync,
+                ),
+                _summaryCard(
+                  'Resolved',
+                  '$resolved',
+                  Icons.check_circle_outline,
+                ),
+              ],
+              initialDelay: const Duration(milliseconds: 60),
+              interval: const Duration(milliseconds: 70),
+            ),
           ),
           const SizedBox(height: 35),
           TextField(
@@ -751,12 +871,29 @@ class _ComplaintHomeState extends State<ComplaintHome> {
             ],
           ),
           const SizedBox(height: 15),
-          if (filteredComplaints.isEmpty)
-            _noComplaintsFound()
-          else
-            ...filteredComplaints.map(
-              (complaint) => _adminComplaintCard(complaint),
-            ),
+          // Keyed on the active filter only: changing a filter cross-fades
+          // the result set, while typing in the search box simply updates
+          // the children in place.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: filteredComplaints.isEmpty
+                ? KeyedSubtree(
+                    key: ValueKey<String>(selectedFilter),
+                    child: _noComplaintsFound(),
+                  )
+                : KeyedSubtree(
+                    key: ValueKey<String>(selectedFilter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        for (final complaint in filteredComplaints)
+                          _adminComplaintCard(complaint),
+                      ],
+                    ),
+                  ),
+          ),
         ],
       ),
     );
@@ -854,14 +991,16 @@ class _ComplaintHomeState extends State<ComplaintHome> {
               ),
             ),
             const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _showAdminComplaintDetails(complaint);
-                },
-                icon: const Icon(Icons.manage_search),
-                label: const Text('Manage Complaint'),
+            PressScale(
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _showAdminComplaintDetails(complaint);
+                  },
+                  icon: const Icon(Icons.manage_search),
+                  label: const Text('Manage Complaint'),
+                ),
               ),
             ),
           ],
@@ -1326,15 +1465,23 @@ class _ComplaintHomeState extends State<ComplaintHome> {
             child: Padding(
               padding: const EdgeInsets.all(30),
               child: Column(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.primary,
+                children: buildStaggeredChildren(
+                  <Widget>[
+                  Center(
+                    // A gently pulsing bulb marks the app identity.
+                    child: LightPulse(
+                      borderRadius: BorderRadius.circular(50),
+                      child: Icon(
+                        Icons.lightbulb_outline,
+                        size: 80,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
                     'About StreetLight',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -1365,7 +1512,11 @@ class _ComplaintHomeState extends State<ComplaintHome> {
                       height: 1.5,
                     ),
                   ),
-                ],
+                  ],
+                  interval: const Duration(milliseconds: 70),
+                  duration: const Duration(milliseconds: 340),
+                  maxTotalDelay: const Duration(milliseconds: 420),
+                ),
               ),
             ),
           ),
@@ -1488,9 +1639,12 @@ bool gettingLocation = false;
           ),
           child: Form(
             key: _formKey,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
+            child: FadeSlideIn(
+              duration: const Duration(milliseconds: 420),
+              slide: const Offset(0, 0.04),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
@@ -1718,61 +1872,87 @@ if (latitude != null && longitude != null)
 
                     const SizedBox(height: 10),
 
-                    if (selectedImage != null)
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    12),
-                            child: Image.memory(
-                              selectedImage!,
-                              width: double.infinity,
-                              height: 220,
-                              fit: BoxFit.cover,
+                    // PHOTO: cross-fades between the empty state
+                    // and the selected preview.
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.04),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
                             ),
                           ),
-
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: CircleAvatar(
-                              backgroundColor:
-                                  Colors.black54,
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    selectedImage =
-                                        null;
-                                  });
-                                },
-                                icon: const Icon(
-                                  Icons.close,
-                                  color:
-                                      Colors.white,
+                          child: child,
+                        ),
+                      ),
+                      child: selectedImage != null
+                          ? Stack(
+                              key: const ValueKey('photo-preview'),
+                              children: [
+                                ClipRRect(
+                                  borderRadius:
+                                      BorderRadius.circular(
+                                          12),
+                                  child: Image.memory(
+                                    selectedImage!,
+                                    width: double.infinity,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      InkWell(
-                        onTap: _pickImage,
-                        borderRadius:
-                            BorderRadius.circular(12),
-                        child: Container(
-                          width: double.infinity,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    12),
-                            border: Border.all(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outline,
-                            ),
+
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: PressScale(
+                                    child: CircleAvatar(
+                                      backgroundColor:
+                                          Colors.black54,
+                                      child: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedImage =
+                                                null;
+                                          });
+                                        },
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color:
+                                              Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : PressScale(
+                              key: const ValueKey('photo-empty'),
+                              child: InkWell(
+                                onTap: _pickImage,
+                                borderRadius:
+                                    BorderRadius.circular(12),
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius:
+                                        BorderRadius.circular(
+                                            12),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline,
+                                    ),
                           ),
                           child: Column(
                             mainAxisAlignment:
@@ -1820,22 +2000,26 @@ if (latitude != null && longitude != null)
                           ),
                         ),
                       ),
+                    ),
+                  ),
 
                     const SizedBox(height: 30),
 
                     // SUBMIT
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: _submitComplaint,
-                        icon: const Icon(Icons.send),
-                        label: const Text(
-                          'Submit Complaint',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight:
-                                FontWeight.bold,
+                    PressScale(
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _submitComplaint,
+                          icon: const Icon(Icons.send),
+                          label: const Text(
+                            'Submit Complaint',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -1844,6 +2028,7 @@ if (latitude != null && longitude != null)
                 ),
               ),
             ),
+              ),
           ),
         ),
       ),

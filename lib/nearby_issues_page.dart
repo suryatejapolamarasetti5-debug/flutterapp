@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'animations.dart';
 import 'database_helper.dart';
 
 class NearbyIssuesPage extends StatefulWidget {
@@ -512,12 +513,17 @@ class _NearbyIssuesPageState extends State<NearbyIssuesPage> {
               top: 15,
               left: 15,
               right: 15,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    errorMessage,
-                    textAlign: TextAlign.center,
+              // Slides in instead of appearing abruptly.
+              child: FadeSlideIn(
+                duration: const Duration(milliseconds: 300),
+                slide: const Offset(0, -0.06),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      errorMessage,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
@@ -528,7 +534,12 @@ class _NearbyIssuesPageState extends State<NearbyIssuesPage> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildLegend(),
+            child: FadeSlideIn(
+              duration: const Duration(milliseconds: 340),
+              delay: const Duration(milliseconds: 120),
+              slide: const Offset(0, 0.08),
+              child: _buildLegend(),
+            ),
           ),
         ],
       ),

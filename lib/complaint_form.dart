@@ -74,9 +74,12 @@ class _ComplaintFormState extends State<ComplaintForm> {
           constraints: const BoxConstraints(maxWidth: 750),
           child: Form(
             key: _formKey,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
+            child: FadeSlideIn(
+              duration: const Duration(milliseconds: 420),
+              slide: const Offset(0, 0.04),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -279,85 +282,123 @@ class _ComplaintFormState extends State<ComplaintForm> {
 
                     const SizedBox(height: 10),
 
-                    if (selectedImage != null)
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.memory(
-                              selectedImage!,
-                              width: double.infinity,
-                              height: 220,
-                              fit: BoxFit.cover,
+                    // PHOTO: cross-fades between the empty state and the
+                    // selected preview.
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.04),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              ),
+                              child: child,
                             ),
                           ),
+                      child: selectedImage != null
+                          ? Stack(
+                              key: const ValueKey('photo-preview'),
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.memory(
+                                    selectedImage!,
+                                    width: double.infinity,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
 
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: CircleAvatar(
-                              backgroundColor: Colors.black54,
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    selectedImage = null;
-                                  });
-                                },
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: PressScale(
+                                    child: CircleAvatar(
+                                      backgroundColor: Colors.black54,
+                                      child: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedImage = null;
+                                          });
+                                        },
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : PressScale(
+                              key: const ValueKey('photo-empty'),
+                              child: InkWell(
+                                onTap: _pickImage,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius:
+                                        BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons
+                                            .add_a_photo_outlined,
+                                        size: 40,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+
+                                      const SizedBox(height: 10),
+
+                                      const Text(
+                                        'Add Photo',
+                                        style: TextStyle(
+                                          fontWeight:
+                                              FontWeight.bold,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 5),
+
+                                      Text(
+                                        'Tap to select an image',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(
+                                                alpha: 0.6,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      )
-                    else
-                      InkWell(
-                        onTap: _pickImage,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: double.infinity,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_a_photo_outlined,
-                                size: 40,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              const Text(
-                                'Add Photo',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-
-                              const SizedBox(height: 5),
-
-                              Text(
-                                'Tap to select an image',
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    ),
 
                     const SizedBox(height: 30),
 
@@ -366,17 +407,19 @@ class _ComplaintFormState extends State<ComplaintForm> {
                       color: Theme.of(context).colorScheme.primary,
                       minRadius: 6,
                       maxRadius: 12,
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: _submitComplaint,
-                          icon: const Icon(Icons.send),
-                          label: const Text(
-                            'Submit Complaint',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      child: PressScale(
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _submitComplaint,
+                            icon: const Icon(Icons.send),
+                            label: const Text(
+                              'Submit Complaint',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -386,9 +429,10 @@ class _ComplaintFormState extends State<ComplaintForm> {
                 ),
               ),
             ),
+              ),
+            ),
           ),
         ),
-      ),
     );
   }
 

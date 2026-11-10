@@ -90,32 +90,53 @@ class _AppIntroPageState extends State<AppIntroPage> {
             children: [
               // =========================
               // APP LOGO / NAME
+              // Light icon → gentle pulse → title fades in
               // =========================
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GlowPulse(
-                    borderRadius: BorderRadius.circular(50),
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: colorScheme.primary,
-                      child: const Icon(
-                        Icons.lightbulb,
-                        color: Colors.white,
-                        size: 22,
+              FadeSlideIn(
+                duration: const Duration(milliseconds: 620),
+                slide: const Offset(0, -0.04),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    LightPulse(
+                      borderRadius: BorderRadius.circular(50),
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: colorScheme.primary,
+                        child: const Icon(
+                          Icons.lightbulb,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'StreetLight',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
+                    const SizedBox(width: 10),
+                    Text(
+                      'StreetLight',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              FadeSlideIn(
+                duration: const Duration(milliseconds: 420),
+                delay: const Duration(milliseconds: 220),
+                child: Text(
+                  'Complaint Management System',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    letterSpacing: 0.4,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
-                ],
+                ),
               ),
 
               const SizedBox(height: 18),
@@ -124,17 +145,24 @@ class _AppIntroPageState extends State<AppIntroPage> {
               // FLASHCARDS
               // =========================
               Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: _cards.length,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    return _FlashCard(card: _cards[index]);
-                  },
+                child: FadeSlideIn(
+                  duration: const Duration(milliseconds: 480),
+                  delay: const Duration(milliseconds: 180),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _cards.length,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return _FlashCard(
+                        key: ValueKey<int>(index),
+                        card: _cards[index],
+                      );
+                    },
+                  ),
                 ),
               ),
 
@@ -169,25 +197,29 @@ class _AppIntroPageState extends State<AppIntroPage> {
               // =========================
               Row(
                 children: [
-                  TextButton(
-                    onPressed: _finish,
-                    child: const Text('Skip'),
+                  PressScale(
+                    child: TextButton(
+                      onPressed: _finish,
+                      child: const Text('Skip'),
+                    ),
                   ),
 
                   const Spacer(),
 
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: isLast ? _finish : () {
-                        _goToPage(_currentIndex + 1);
-                      },
-                      icon: Icon(isLast ? Icons.check : Icons.arrow_forward),
-                      label: Text(
-                        isLast ? 'Get Started' : 'Next',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                  PressScale(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: isLast ? _finish : () {
+                          _goToPage(_currentIndex + 1);
+                        },
+                        icon: Icon(isLast ? Icons.check : Icons.arrow_forward),
+                        label: Text(
+                          isLast ? 'Get Started' : 'Next',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -209,89 +241,95 @@ class _AppIntroPageState extends State<AppIntroPage> {
 class _FlashCard extends StatelessWidget {
   final _IntroCard card;
 
-  const _FlashCard({required this.card});
+  const _FlashCard({super.key, required this.card});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
-      child: BreathingGlow(
-        color: card.color,
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 380),
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppThemes.darkCard
-                : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: card.color.withValues(alpha: 0.25),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: card.color.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
+      child: FadeSlideIn(
+        // Each card settles in softly as its page comes to rest.
+        duration: const Duration(milliseconds: 420),
+        slide: const Offset(0, 0.05),
+        scale: 0.97,
+        child: BreathingGlow(
+          color: card.color,
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 380),
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppThemes.darkCard
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: card.color.withValues(alpha: 0.25),
+                width: 1.5,
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // ---------- ICON ----------
-              LightRipple(
-                color: card.color,
-                maxOpacity: 0.35,
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: card.color.withValues(alpha: 0.12),
-                    border: Border.all(
-                      color: card.color.withValues(alpha: 0.3),
-                      width: 2,
+              boxShadow: [
+                BoxShadow(
+                  color: card.color.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // ---------- ICON ----------
+                LightRipple(
+                  color: card.color,
+                  maxOpacity: 0.35,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: card.color.withValues(alpha: 0.12),
+                      border: Border.all(
+                        color: card.color.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      card.icon,
+                      size: 46,
+                      color: card.color,
                     ),
                   ),
-                  child: Icon(
-                    card.icon,
-                    size: 46,
-                    color: card.color,
+                ),
+
+                const SizedBox(height: 30),
+
+                // ---------- TITLE ----------
+                Text(
+                  card.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 30),
+                const SizedBox(height: 14),
 
-              // ---------- TITLE ----------
-              Text(
-                card.title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+                // ---------- DESCRIPTION ----------
+                Text(
+                  card.description,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ---------- DESCRIPTION ----------
-              Text(
-                card.description,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.5,
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

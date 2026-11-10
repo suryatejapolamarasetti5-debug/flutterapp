@@ -125,15 +125,18 @@ class ComplaintsTabState extends State<ComplaintsTab> {
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AnimatedStatusHeader(
-              title: isAdmin ? 'Complaints' : 'My Complaints',
-              subtitle: isAdmin
-                  ? 'All complaints across users'
-                  : (userName == null
-                      ? 'Browse reported streetlight issues'
-                      : 'Track complaints by $userName'),
-              isActive: true,
+          children: <Widget>[
+            FadeSlideIn(
+              duration: const Duration(milliseconds: 380),
+              child: AnimatedStatusHeader(
+                title: isAdmin ? 'Complaints' : 'My Complaints',
+                subtitle: isAdmin
+                    ? 'All complaints across users'
+                    : (userName == null
+                        ? 'Browse reported streetlight issues'
+                        : 'Track complaints by $userName'),
+                isActive: true,
+              ),
             ),
 
             const SizedBox(height: 22),
@@ -149,75 +152,90 @@ class ComplaintsTabState extends State<ComplaintsTab> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: [
-                  _summaryCard(
-                    'Total',
-                    '${complaints.length}',
-                    Icons.assignment_outlined,
-                  ),
-                  _summaryCard(
-                    'Pending',
-                    '$pending',
-                    Icons.pending_actions,
-                    color: AppThemes.statusPending,
-                  ),
-                  _summaryCard(
-                    'In Progress',
-                    '$progress',
-                    Icons.sync,
-                    color: AppThemes.statusInProgress,
-                  ),
-                  _summaryCard(
-                    'Resolved',
-                    '$resolved',
-                    Icons.check_circle_outline,
-                    color: AppThemes.statusResolved,
-                  ),
-                ],
+                // Summary cards arrive one after another.
+                children: buildStaggeredChildren(
+                  <Widget>[
+                    _summaryCard(
+                      'Total',
+                      '${complaints.length}',
+                      Icons.assignment_outlined,
+                    ),
+                    _summaryCard(
+                      'Pending',
+                      '$pending',
+                      Icons.pending_actions,
+                      color: AppThemes.statusPending,
+                    ),
+                    _summaryCard(
+                      'In Progress',
+                      '$progress',
+                      Icons.sync,
+                      color: AppThemes.statusInProgress,
+                    ),
+                    _summaryCard(
+                      'Resolved',
+                      '$resolved',
+                      Icons.check_circle_outline,
+                      color: AppThemes.statusResolved,
+                    ),
+                  ],
+                  initialDelay: const Duration(milliseconds: 60),
+                  interval: const Duration(milliseconds: 70),
+                ),
               ),
 
               const SizedBox(height: 25),
 
               if (complaints.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(40),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        size: 55,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.4),
-                      ),
-                      const SizedBox(height: 15),
-                      const Text(
-                        'No complaints yet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Your submitted complaints will appear here.',
-                        style: TextStyle(
+                FadeSlideIn(
+                  duration: const Duration(milliseconds: 340),
+                  delay: const Duration(milliseconds: 120),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline,
+                          size: 55,
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withValues(alpha: 0.6),
+                              .withValues(alpha: 0.4),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 15),
+                        const Text(
+                          'No complaints yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Your submitted complaints will appear here.',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               else
-                ...complaints.map(
-                  (complaint) => isAdmin
-                      ? _adminComplaintCard(complaint)
-                      : _complaintCard(complaint),
+                // Each card fades and lifts in with a small stagger.
+                StaggeredListAnimation(
+                  initialDelay: const Duration(milliseconds: 120),
+                  children: <Widget>[
+                    for (final Map<String, dynamic> complaint in complaints)
+                      if (isAdmin)
+                        _adminComplaintCard(complaint)
+                      else
+                        _complaintCard(complaint),
+                  ],
                 ),
             ],
           ],
@@ -381,14 +399,16 @@ class ComplaintsTabState extends State<ComplaintsTab> {
               ),
             ),
             const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _showAdminComplaintDetails(complaint);
-                },
-                icon: const Icon(Icons.manage_search),
-                label: const Text('Manage Complaint'),
+            PressScale(
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _showAdminComplaintDetails(complaint);
+                  },
+                  icon: const Icon(Icons.manage_search),
+                  label: const Text('Manage Complaint'),
+                ),
               ),
             ),
           ],
@@ -398,21 +418,9 @@ class ComplaintsTabState extends State<ComplaintsTab> {
   }
 
   Widget _statusBadge(String status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: _statusColor(status).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: _statusColor(status),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
+    // Cross-fades the label and icon when the status changes
+    // (Pending → In Progress → Resolved).
+    return StatusIndicator(status: status, color: _statusColor(status));
   }
 
   Color _statusColor(String status) {

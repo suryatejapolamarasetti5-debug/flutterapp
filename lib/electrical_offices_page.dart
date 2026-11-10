@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'animations.dart';
+
 class ElectricalOfficesPage extends StatefulWidget {
   const ElectricalOfficesPage({super.key});
 
@@ -148,7 +150,15 @@ class _ElectricalOfficesPageState extends State<ElectricalOfficesPage> {
                     itemCount: _filteredOffices.length,
                     itemBuilder: (context, index) {
                       final office = _filteredOffices[index];
-                      return _buildOfficeCard(office);
+                      return FadeSlideIn(
+                        duration: const Duration(milliseconds: 320),
+                        // Only the first screenful is staggered; anything
+                        // below the fold appears immediately while scrolling.
+                        delay: Duration(
+                          milliseconds: (index * 55).clamp(0, 440),
+                        ),
+                        child: _buildOfficeCard(office),
+                      );
                     },
                   ),
           ),
@@ -206,23 +216,27 @@ class _ElectricalOfficesPageState extends State<ElectricalOfficesPage> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _launchUrl(office['phone']!, isPhone: true),
-                    icon: const Icon(Icons.phone, size: 18),
-                    label: const Text('Call', style: TextStyle(fontSize: 13)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: PressScale(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _launchUrl(office['phone']!, isPhone: true),
+                      icon: const Icon(Icons.phone, size: 18),
+                      label: const Text('Call', style: TextStyle(fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _launchUrl(office['email']!),
-                    icon: const Icon(Icons.email_outlined, size: 18),
-                    label: const Text('Email', style: TextStyle(fontSize: 13)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: PressScale(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _launchUrl(office['email']!),
+                      icon: const Icon(Icons.email_outlined, size: 18),
+                      label: const Text('Email', style: TextStyle(fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                     ),
                   ),
                 ),

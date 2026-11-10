@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'animations.dart';
 import 'auth_service.dart';
 import 'database_helper.dart';
 
@@ -146,22 +147,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(30),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: CircleAvatar(
-                            radius: 40,
-                            backgroundColor: colorScheme.primary,
-                            child: const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 40,
+                  child: FadeSlideIn(
+                    duration: const Duration(milliseconds: 400),
+                    slide: const Offset(0, 0.04),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: LightPulse(
+                              borderRadius: BorderRadius.circular(50),
+                              child: CircleAvatar(
+                                radius: 40,
+                                backgroundColor: colorScheme.primary,
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
 
                         const SizedBox(height: 20),
 
@@ -308,25 +315,27 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                         // =========================
                         // SAVE BUTTON
                         // =========================
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton.icon(
-                            onPressed: isSaving ? null : _save,
-                            icon: isSaving
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.save_outlined),
-                            label: Text(
-                              isSaving ? 'Saving...' : 'Save Changes',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                        PressScale(
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              onPressed: isSaving ? null : _save,
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_outlined),
+                              label: Text(
+                                isSaving ? 'Saving...' : 'Save Changes',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -338,8 +347,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
             ),
           ),
-        ),
-      ),
-    );
+),
+    ),
+  ),
+);
   }
 }

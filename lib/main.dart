@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'animations.dart';
 import 'app_shell.dart';
 import 'login_page.dart';
 import 'register_page.dart';
@@ -23,12 +23,30 @@ class StreetLightApp extends StatelessWidget {
 
       theme: AppThemes.deepCorporateBlue().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: SubtlePageTransitionsBuilder(),
+            TargetPlatform.iOS: SubtlePageTransitionsBuilder(),
+            TargetPlatform.linux: SubtlePageTransitionsBuilder(),
+            TargetPlatform.macOS: SubtlePageTransitionsBuilder(),
+            TargetPlatform.windows: SubtlePageTransitionsBuilder(),
+          },
+        ),
       ),
 
       darkTheme: AppThemes.darkThemeFor(
         AppThemes.themeSeedColors['Deep Corporate Blue']!,
       ).copyWith(
         scaffoldBackgroundColor: Colors.transparent,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: SubtlePageTransitionsBuilder(),
+            TargetPlatform.iOS: SubtlePageTransitionsBuilder(),
+            TargetPlatform.linux: SubtlePageTransitionsBuilder(),
+            TargetPlatform.macOS: SubtlePageTransitionsBuilder(),
+            TargetPlatform.windows: SubtlePageTransitionsBuilder(),
+          },
+        ),
       ),
 
       themeMode: ThemeMode.system,
@@ -100,9 +118,27 @@ class _AppRootState extends State<AppRoot> {
 
         Positioned.fill(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
+            duration: const Duration(milliseconds: 420),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
             transitionBuilder: (child, animation) {
-              return FadeTransition(opacity: animation, child: child);
+              // Calm cross-fade with a hint of upward motion between the
+              // intro, the auth screens and the app shell.
+              final Animation<double> curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+
+              return FadeTransition(
+                opacity: curved,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.02),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              );
             },
             child: KeyedSubtree(
               key: ValueKey(_stage),
